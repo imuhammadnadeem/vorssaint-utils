@@ -1684,6 +1684,18 @@ enum NotchSupport {
         modules.first { $0.shortcutKey == characters.lowercased() }
     }
 
+    /// The Explore tiles' Option-Command keys as global shortcuts, each on the
+    /// key that types its letter in the current layout. A letter the layout
+    /// cannot type with Command gets none and stays with the local monitor.
+    static func exploreShortcuts(modules: [NotchModule],
+                                 label: (Int64) -> String?) -> [(module: NotchModule, shortcut: GlobalShortcut)] {
+        modules.compactMap { module in
+            let letter = module.shortcutKey.uppercased()
+            guard let keyCode = (Int64(0)...127).first(where: { label($0) == letter }) else { return nil }
+            return (module, GlobalShortcut(keyCode: keyCode, modifiers: [.command, .option]))
+        }
+    }
+
     static func filteredModules(_ modules: [NotchModule], query: String,
                                 title: (NotchModule) -> String) -> [NotchModule] {
         let terms = CommandBarSearch.normalized(query).split(separator: " ")

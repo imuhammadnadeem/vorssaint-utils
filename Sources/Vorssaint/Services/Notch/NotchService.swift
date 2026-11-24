@@ -139,7 +139,13 @@ final class NotchService: ObservableObject {
     @Published var pinned = false
     @Published private(set) var selected: NotchModule = .controls
     @Published private(set) var showingAppPanel = false
-    @Published private(set) var showingSections = false
+    @Published private(set) var showingSections = false {
+        didSet { if showingSections != oldValue { syncExploreHotkeys() } }
+    }
+    /// The Explore tiles' keys, held only while the grid shows. An island
+    /// opened by hover leaves the keyboard with the app in front, whose own
+    /// Option-Command shortcuts would otherwise take these keys (#4379).
+    private var exploreHotkeys: [QuickToolHotkey] = []
     @Published private(set) var sectionQuery = ""
     @Published var highlightedSection: NotchModule? { didSet { revealHighlightedSection() } }
     /// The gallery's first visible row; the rows above it have stepped away.
@@ -1942,6 +1948,24 @@ final class NotchService: ObservableObject {
     func select(_ module: NotchModule) {
         guard modules.contains(module) else { return }
         open(module)
+    }
+
+    private func syncExploreHotkeys() {
+        exploreHotkeys.forEach { $0.unregister() }
+        exploreHotkeys = []
+        guard showingSections, !ShortcutCapture.isCapturing else { return }
+        let shortcuts = NotchSupport.exploreShortcuts(modules: modules) {
+            GlobalShortcut.layoutKeyLabel(for: $0, usesCommand: true)
+        }
+        for (index, entry) in shortcuts.enumerated() {
+            let hotkey = QuickToolHotkey(id: 1900 + UInt32(index))
+            hotkey.onPress = { [weak self] in
+                guard let self, self.showingSections, self.captureControls == nil else { return }
+                self.select(entry.module)
+            }
+            hotkey.sync(enabled: true, shortcut: entry.shortcut, storageKey: "notchExplore.\(entry.module)")
+            exploreHotkeys.append(hotkey)
+        }
     }
 
     /// The pad lives in the island when its page is on; otherwise the

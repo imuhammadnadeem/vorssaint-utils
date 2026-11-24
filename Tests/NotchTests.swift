@@ -4,6 +4,7 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 
 enum NotchTests {
@@ -2454,6 +2455,20 @@ enum NotchTests {
         }
         suite.expect(NotchSupport.moduleShortcut("c", modules: []) == nil,
                "direct shortcuts tolerate an empty gallery")
+        let qwerty: [Int64: String] = [Int64(kVK_ANSI_C): "C", Int64(kVK_ANSI_I): "I", Int64(kVK_ANSI_R): "R"]
+        let explore = NotchSupport.exploreShortcuts(modules: [.controls, .system, .timer]) { qwerty[$0] }
+        suite.expect(explore.map(\.module) == [.controls, .system, .timer]
+                     && explore.map(\.shortcut) == [
+                        GlobalShortcut(keyCode: Int64(kVK_ANSI_C), modifiers: [.command, .option]),
+                        GlobalShortcut(keyCode: Int64(kVK_ANSI_I), modifiers: [.command, .option]),
+                        GlobalShortcut(keyCode: Int64(kVK_ANSI_R), modifiers: [.command, .option])],
+                     "Explore holds each tile's Option-Command key while the grid shows")
+        let azerty: [Int64: String] = [Int64(kVK_ANSI_Q): "A"]
+        suite.expect(NotchSupport.exploreShortcuts(modules: [.calendar]) { azerty[$0] }.map(\.shortcut)
+                     == [GlobalShortcut(keyCode: Int64(kVK_ANSI_Q), modifiers: [.command, .option])],
+                     "Explore keys follow the letter the current layout types, not its US position")
+        suite.expect(NotchSupport.exploreShortcuts(modules: [.calendar]) { _ in nil }.isEmpty,
+                     "a letter the layout cannot type gets no global key")
         var reached = Set<NotchModule>()
         var current: NotchModule? = allModules.first
         for _ in allModules {
